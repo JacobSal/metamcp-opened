@@ -1,4 +1,62 @@
 services:
+  # ========================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-webui
+    env_file:
+      - .env
+    ports:
+      - "11434:11434"           # Ollama API port (host 11435 -> container 11434)
+    environment:
+      # Ensure Ollama can reach MetamCP
+      OPENWEB_URL: "http://openwebui:3000"
+      METAMCP_URL: "http://app:12008"
+      # (optional: any other env vars your model uses)      
+      # OLLAMA_NUM_CTX: 100000
+    volumes:
+      - .:/app
+      - ollama:/root/.ollama
+    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${OLLAMA_GPU_COUNT:-1}  # Use all available GPUs by default, or specify with env var
+              capabilities: [gpu]
+    networks:
+      - metamcp-network
+  
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main #v0.8.6-cuda #ollama-webui/ollama-webui:main
+    container_name: webui
+    ports:
+      - ${OPEN_WEBUI_PORT_APP:-3000}:8080
+    env_file:
+      - .env
+    environment:
+      # Ensure OpenWebUI can reach MetamCP and Ollama
+      OLLAMA_API_BASE_URL: "http://ollama:11434/api"
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      METAMCP_URL: "http://app:12008"
+      OLLAMA_DOCKER_TAG: ${OLLAMA_DOCKER_TAG_APP:-latest}
+      USE_CUDA: ${USE_CUDA_APP:-true}
+      USE_OLLAMA: ${USE_OLLAMA_APP:-true}
+      # Database configuration (composed from above vars)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_OPENWEBUI_DB:-openwebui_db}
+    depends_on:
+      - ollama
+      # - app
+      - postgres
+    restart: unless-stopped
+    volumes:
+      - open-webui:/app/backend/data # Persists data
+      - open-webui:/var/lib/.openwebui 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - metamcp-network
+
   app:
     container_name: metamcp
     image: ghcr.io/metatool-ai/metamcp:latest
@@ -28,134 +86,6 @@ services:
       # Docker networking fix
       TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL: ${TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL:-true}
       
-      # ========================================================================
-      # Bootstrap Configuration Examples
-      # ========================================================================
-      
-      # Multiple Users - Define different users with different roles
-      # BOOTSTRAP_USERS: |
-      #   [
-      #     {
-      #       "email": "admin@company.com",
-      #       "password": "admin-secure-password",
-      #       "name": "System Administrator"
-      #     },
-      #     {
-      #       "email": "developer@company.com",
-      #       "password": "dev-secure-password",
-      #       "name": "Lead Developer"
-      #     },
-      #     {
-      #       "email": "analyst@company.com",
-      #       "password": "analyst-secure-password",
-      #       "name": "Data Analyst"
-      #     }
-      #   ]
-      
-      # API Keys - Assign keys to specific users using user_email
-      # BOOTSTRAP_API_KEYS: |
-      #   [
-      #     {
-      #       "name": "Admin Production Key",
-      #       "is_public": false,
-      #       "user_email": "admin@company.com"
-      #     },
-      #     {
-      #       "name": "Developer Key",
-      #       "is_public": false,
-      #       "user_email": "developer@company.com"
-      #     },
-      #     {
-      #       "name": "Analyst Key",
-      #       "is_public": false,
-      #       "user_email": "analyst@company.com"
-      #     },
-      #     {
-      #       "name": "Public API Key",
-      #       "is_public": true
-      #     }
-      #   ]
-      
-      # Namespaces - Create user-specific workspaces
-      # BOOTSTRAP_NAMESPACES: |
-      #   [
-      #     {
-      #       "name": "Admin Workspace",
-      #       "description": "Administrator's private workspace",
-      #       "is_public": false,
-      #       "user_email": "admin@company.com",
-      #       "update": true
-      #     },
-      #     {
-      #       "name": "Development",
-      #       "description": "Development environment",
-      #       "is_public": false,
-      #       "user_email": "developer@company.com",
-      #       "update": true
-      #     },
-      #     {
-      #       "name": "Analytics",
-      #       "description": "Data analytics workspace",
-      #       "is_public": false,
-      #       "user_email": "analyst@company.com",
-      #       "update": true
-      #     },
-      #     {
-      #       "name": "Shared Resources",
-      #       "description": "Public shared namespace",
-      #       "is_public": true,
-      #       "update": true
-      #     }
-      #   ]
-      
-      # Endpoints - Configure endpoints with different owners and auth settings
-      # Note: Endpoints can optionally specify which namespace they should be created in
-      # BOOTSTRAP_ENDPOINTS: |
-      #   [
-      #     {
-      #       "name": "admin-api",
-      #       "description": "Admin-only API endpoint",
-      #       "namespace": "Production",
-      #       "enable_auth": true,
-      #       "enable_auth_query": false,
-      #       "enable_auth_oauth": true,
-      #       "is_public": false,
-      #       "user_email": "admin@company.com",
-      #       "update": true
-      #     },
-      #     {
-      #       "name": "dev-api",
-      #       "description": "Development API endpoint",
-      #       "namespace": "Development",
-      #       "enable_auth": true,
-      #       "enable_auth_query": true,
-      #       "enable_auth_oauth": false,
-      #       "is_public": false,
-      #       "user_email": "developer@company.com",
-      #       "update": true
-      #     },
-      #     {
-      #       "name": "analytics-api",
-      #       "description": "Analytics API endpoint",
-      #       "namespace": "Analytics",
-      #       "enable_auth": true,
-      #       "enable_auth_query": false,
-      #       "enable_auth_oauth": false,
-      #       "is_public": false,
-      #       "user_email": "analyst@company.com",
-      #       "update": true
-      #     },
-      #     {
-      #       "name": "public-api",
-      #       "description": "Public API endpoint - no auth required",
-      #       "namespace": "Shared Resources",
-      #       "enable_auth": false,
-      #       "enable_auth_query": false,
-      #       "enable_auth_oauth": false,
-      #       "is_public": true,
-      #       "update": true
-      #     }
-      #   ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -178,6 +108,7 @@ services:
     ports:
       - "${POSTGRES_EXTERNAL_PORT:-9433}:5432"
     volumes:
+      - ./pg-init-scripts:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-metamcp_user} -d ${POSTGRES_DB:-metamcp_db}"]
@@ -189,6 +120,9 @@ services:
       - metamcp-network
 
 volumes:
+  ollama:
+  open-webui:
+  ollama-data:
   postgres_data:
     driver: local
 
