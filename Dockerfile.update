@@ -105,7 +105,7 @@ RUN cd apps/backend && pnpm add drizzle-kit@0.31.1
 RUN npm install -g @modelcontextprotocol/server-sequential-thinking
 RUN npm install -g server-shannon-thinking@latest
 RUN npm install -f @sylphyx/pdf-reader-mcp
-RUN uv install mcp-server-fetch
+RUN uv tool install mcp-server-fetch
 # (04/09/2026) JS, when preinstalling uv packages, you need to call: 
 # uvx --from <package> <command> --args <args>, when adding it to your mcp-server list 
 # in metamcp
