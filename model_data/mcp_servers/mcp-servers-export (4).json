@@ -1,0 +1,124 @@
+{
+  "mcpServers": {
+    "server-filesystem": {
+      "type": "STDIO",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/data"
+      ]
+    },
+    "MongoDB": {
+      "type": "STDIO",
+      "description": "Provides a bridge between MongoDB databases and conversational interfaces, enabling comprehensive database operations, collection management, schema inspection, and Atlas cloud service interactions with authentication and telemetry support.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mongodb-mcp-server",
+        "--readOnly"
+      ],
+      "env": {
+        "MDB_MCP_API_CLIENT_ID": "",
+        "MDB_MCP_API_CLIENT_SECRET": "",
+        "MDB_MCP_CONNECTION_STRING": ""
+      }
+    },
+    "Simple-Timeserver": {
+      "type": "STDIO",
+      "description": "Access accurate local and UTC time information.",
+      "command": "uvx",
+      "args": [
+        "mcp-simple-timeserver"
+      ]
+    },
+    "Octocode": {
+      "type": "STDIO",
+      "description": "Integrates with GitHub CLI and npm to provide repository analysis, code discovery, file exploration, commit history tracking, and package metadata retrieval with intelligent caching and cross-tool workflow support.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "octocode-mcp"
+      ],
+      "env": {
+        "GH_TOKEN": "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",
+        "GITHUB_TOKEN": "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",
+        "Authorization": ""
+      }
+    },
+    "arXiv-Research": {
+      "type": "STDIO",
+      "description": "Search and analyze scientific papers from arXiv.",
+      "command": "uvx",
+      "args": [
+        "mcp_simple_arxiv"
+      ]
+    },
+    "Playwright": {
+      "type": "STDIO",
+      "description": "Automate web browsers for testing, scraping, and visual analysis.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ]
+    },
+    "FireCrawl": {
+      "type": "STDIO",
+      "description": "Integration with FireCrawl to provide advanced web scraping capabilities for extracting structured data from complex websites.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "firecrawl-mcp"
+      ],
+      "env": {
+        "FIRECRAWL_API_KEY": "fc-27f92243bf0940da8858dcfaac0dbdb1",
+        "FIRECRAWL_RETRY_MAX_ATTEMPTS": "2"
+      }
+    },
+    "Fetch": {
+      "type": "STDIO",
+      "description": "Retrieve and convert web content to markdown for analysis.",
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch",
+        "--ignore-robots-txt"
+      ]
+    },
+    "Web-Content-Pick": {
+      "type": "STDIO",
+      "description": "Extracts structured content from web pages using customizable selectors for crawling, parsing, and analyzing HTML elements without leaving the assistant interface.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-web-content-pick"
+      ]
+    },
+    "Shannon-Thinking": {
+      "type": "STDIO",
+      "description": "https://github.com/olaservo/shannon-thinking",
+      "command": "npx",
+      "args": [
+        "-y",
+        "server-shannon-thinking@latest"
+      ]
+    },
+    "Sequential-Thinking": {
+      "type": "STDIO",
+      "description": "Implements a structured sequential thinking process for breaking down complex problems, iteratively refining solutions, and exploring multiple reasoning paths.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "pdf-reader": {
+      "type": "STDIO",
+      "description": "reads pdfs",
+      "command": "npx",
+      "args": [
+        "@sylphx/pdf-reader-mcp"
+      ]
+    }
+  }
+}

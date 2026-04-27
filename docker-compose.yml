@@ -1,122 +1,109 @@
 services:
-  # ========================================================================
+
+  # ── Ollama ───────────────────────────────────────────────────────────────
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
-    env_file:
-      - .env
+    command: serve
+    env_file: .env
     ports:
-      - "11434:11434"           # Ollama API port (host 11435 -> container 11434)
+      - "11434:11434"
     environment:
-      # Ensure Ollama can reach MetamCP
-      OPENWEB_URL: "http://openwebui:3000"
-      METAMCP_URL: "http://app:12008"
-      # (optional: any other env vars your model uses)      
-      # OLLAMA_NUM_CTX: 100000
-      # OLLAMA_CONTEXT_LENGTH: 0 # unlimited context length (be careful with this!)
-      OLLAMA_MAX_LOADED_MODELS: 4 # limit to reranker, embedding, and agent/coder
+      OLLAMA_MAX_LOADED_MODELS: 4
       OLLAMA_NUM_PARALLEL: 4
-      # OLLAMA_VULKAN: true # may improve performance 
+      # OLLAMA_NUM_CTX: 100000
+      # OLLAMA_VULKAN: true
     volumes:
-      - ollama-data:/root/.ollama     
-    gpus: all
+      - ollama_data:/root/.ollama
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: ${OLLAMA_GPU_COUNT:-1}  # Use all available GPUs by default, or specify with env var
+              count: ${OLLAMA_GPU_COUNT:-1}
               capabilities: [gpu]
     networks:
       - metamcp-network
-    command: ["serve"]
-  # ========================================================================
+
+  # ── Open WebUI ───────────────────────────────────────────────────────────
   openwebui:
-    image: ghcr.io/open-webui/open-webui:main #v0.8.6-cuda #ollama-webui/ollama-webui:main
+    image: ghcr.io/open-webui/open-webui:main
     container_name: webui
+    env_file: .env
     ports:
-      - ${OPEN_WEBUI_PORT_APP:-3000}:8080
-    env_file:
-      - .env
+      - "${OPEN_WEBUI_PORT:-3000}:8080"
     environment:
-      # Ensure OpenWebUI can reach MetamCP and Ollama
-      OLLAMA_API_BASE_URL: "http://ollama:11434/api"
+      # Ollama
       OLLAMA_BASE_URL: "http://ollama:11434"
-      OLLAMA_DOCKER_TAG: ${OLLAMA_DOCKER_TAG_APP:-latest}
+      OLLAMA_API_BASE_URL: "http://ollama:11434/api"
+      # APP_URL: ${APP_URL:-http://app:12008}
       METAMCP_URL: "http://app:12008"
-      WEBUI_ADMIN_EMAIL: test@email.com
-      WEBUI_ADMIN_PASSWORD: admin
-      WEBUI_ADMIN_NAME: admin
-      USE_CUDA: ${USE_CUDA:-false}
-      USE_OLLAMA: ${USE_OLLAMA:-false}
+      USE_CUDA: "true"
+      USE_OLLAMA: "false"
+      # Embedding / reranking
       RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-nomic-ai/nomic-embed-text-v2-moe}
       RAG_RERANKING_MODEL: ${RAG_RERANKING_MODEL:-Qwen/Qwen3-Reranker-0.6B}
-      # Database configuration
-      VECTOR_DB: pgvector
-      POSTGRES_VECTORS_DB: openwebui_vectors
-      PGVECTOR_DB_URL: postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@${POSTGRES_HOST:-postgres}:5432/${POSTGRES_OPENWEBUI_DB:-openwebui_vectors}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_OPENWEBUI_DB:-openwebui_db}
-      PGVECTOR_CREATE_EXTENSION: false
       HF_TOKEN: ${HF_TOKEN:-}
+      # Postgres — main app DB and vector DB are separate
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@postgres:5432/${POSTGRES_OPENWEBUI_DB:-openwebui_db}"
+      VECTOR_DB: pgvector
+      PGVECTOR_DB_URL: "postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@postgres:5432/${POSTGRES_OPENWEBUI_VECTORS_DB:-openwebui_vectors}"
+      PGVECTOR_CREATE_EXTENSION: "false"
+      # Admin bootstrap (change in .env for production)
+      WEBUI_ADMIN_EMAIL: ${WEBUI_ADMIN_EMAIL:-admin@localhost}
+      WEBUI_ADMIN_PASSWORD: ${WEBUI_ADMIN_PASSWORD:-admin}
+      WEBUI_ADMIN_NAME: ${WEBUI_ADMIN_NAME:-admin}
+    volumes:
+      - open_webui:/var/lib/.openwebui
+      - ${DOCUMENTS_PATH:-./data/documents}:/data/documents
+      - ${PROJECTS_PATH:-./data/projects}:/data/projects
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - ollama
       - app
       - postgres
     restart: unless-stopped
-    volumes:
-      - open_webui:/var/lib/.openwebui
-      - C:/Users/jsalm/Documents:/data/documents
-      - C:/Users/jsalm/Projects:/data/projects
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - metamcp-network
-    # command: '/bin/bash -c "sleep 5; mongosh $$DATABASE_URL --eval \"show dbs;\""'
-  # ========================================================================
+
+  # ── MetaMCP App ──────────────────────────────────────────────────────────
   app:
     container_name: metamcp
     build:
       dockerfile: Dockerfile.update
       context: .
-    pull_policy: always
-    env_file:
-      - .env
+    env_file: .env
     ports:
       - "12008:12008"
     environment:
-      #-- Postgres connection details
-      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-metamcp_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-m3t4mcp}
       POSTGRES_DB: ${POSTGRES_DB:-metamcp_db}
-      #-- Database configuration (composed from above vars)
-      DATABASE_URL: postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-metamcp_db}
-      #-- Application URL configuration
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@postgres:5432/${POSTGRES_DB:-metamcp_db}"
       APP_URL: ${APP_URL:-http://localhost:12008}
-      NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:12008}      
-      #-- Auth configuration
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-your-super-secret-key-change-this-in-production}      
-      #-- Docker networking fix
-      TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL: ${TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL:-true}      
+      NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:12008}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-in-production}
+      TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL: "true"
+    volumes:
+      - ${DOCUMENTS_PATH:-./data/documents}:/data/documents
+      - ${PROJECTS_PATH:-./data/projects}:/data/projects
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
     restart: "no"
-    volumes:
-      - C:/Users/jsalm/Documents:/data/documents
-      - C:/Users/jsalm/Projects:/data/projects
     networks:
       - metamcp-network
-  # ========================================================================
+
+  # ── Postgres + pgvector ──────────────────────────────────────────────────
   postgres:
-    image: pgvector/pgvector:pg16 #postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: metamcp-pg
-    restart: unless-stopped
-    env_file:
-      - .env
+    env_file: .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-metamcp_db}
       POSTGRES_USER: ${POSTGRES_USER:-metamcp_user}
@@ -126,26 +113,23 @@ services:
     volumes:
       - ./pg-init-scripts:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
-      - pgvector_data:/var/lib/postgresql/pgvector
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-metamcp_user} -d ${POSTGRES_DB:-metamcp_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+    restart: unless-stopped
     networks:
       - metamcp-network
 
+# ── Volumes ──────────────────────────────────────────────────────────────────
 volumes:
   postgres_data:
-    driver: local
-  pgvector_data:
-    driver: local
-  ollama-data:
-    driver: local
+  ollama_data:
   open_webui:
-    driver: local
 
+# ── Networks ─────────────────────────────────────────────────────────────────
 networks:
   metamcp-network:
     driver: bridge
