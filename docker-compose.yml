@@ -18,7 +18,7 @@ services:
       OLLAMA_NUM_PARALLEL: 4
       # OLLAMA_VULKAN: true # may improve performance 
     volumes:
-      - ollama:/root/.ollama     
+      - ollama-data:/root/.ollama     
     gpus: all
     deploy:
       resources:
@@ -47,10 +47,10 @@ services:
       WEBUI_ADMIN_EMAIL: test@email.com
       WEBUI_ADMIN_PASSWORD: admin
       WEBUI_ADMIN_NAME: admin
-      USE_CUDA: ${USE_CUDA_OPENWEBUI:-false}
-      USE_OLLAMA: ${USE_OLLAMA_OPENWEBUI:-false}
-      USE_EMBEDDING_MODEL: ${USE_EMBEDDING_MODEL_OPENWEBUI:-nomic-ai/nomic-embed-text-v2-moe}
-      USE_RERANKING_MODEL: ${USE_RERANKING_MODEL_OPENWEBUIL:-Qwen/Qwen3-Reranker-0.6B}
+      USE_CUDA: ${USE_CUDA:-false}
+      USE_OLLAMA: ${USE_OLLAMA:-false}
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-nomic-ai/nomic-embed-text-v2-moe}
+      RAG_RERANKING_MODEL: ${RAG_RERANKING_MODEL:-Qwen/Qwen3-Reranker-0.6B}
       # Database configuration
       VECTOR_DB: pgvector
       POSTGRES_VECTORS_DB: openwebui_vectors
@@ -141,7 +141,7 @@ volumes:
     driver: local
   pgvector_data:
     driver: local
-  ollama:
+  ollama-data:
     driver: local
   open_webui:
     driver: local
