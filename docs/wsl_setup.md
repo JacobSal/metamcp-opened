@@ -98,3 +98,10 @@ sudo apt-get install -y nvidia-container-toolkit
 
 ** get github repos install then
 sudo chown -R $USER:$USER /home/jsalm/<github-directory>
+
+# Package Installations
+
+## PMAT
+1. Install from crates.io
+        cargo install pmat
+

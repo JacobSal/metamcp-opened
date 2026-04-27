@@ -1,0 +1,133 @@
+services:
+  # ========================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-webui
+    env_file:
+      - .env
+    ports:
+      - "11434:11434"           # Ollama API port (host 11435 -> container 11434)
+    environment:
+      # Ensure Ollama can reach MetamCP
+      OPENWEB_URL: "http://openwebui:3000"
+      METAMCP_URL: "http://app:12008"
+      # (optional: any other env vars your model uses)      
+      # OLLAMA_NUM_CTX: 100000
+    volumes:
+      - .:/app
+      - ollama:/root/.ollama
+    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${OLLAMA_GPU_COUNT:-1}  # Use all available GPUs by default, or specify with env var
+              capabilities: [gpu]
+    networks:
+      - metamcp-network
+  
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main #v0.8.6-cuda #ollama-webui/ollama-webui:main
+    container_name: webui
+    ports:
+      - ${OPEN_WEBUI_PORT_APP:-3000}:8080
+    env_file:
+      - .env
+    environment:
+      # Ensure OpenWebUI can reach MetamCP and Ollama
+      OLLAMA_API_BASE_URL: "http://ollama:11434/api"
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      METAMCP_URL: "http://app:12008"
+      OLLAMA_DOCKER_TAG: ${OLLAMA_DOCKER_TAG_APP:-latest}
+      USE_CUDA: ${USE_CUDA_APP:-true}
+      USE_OLLAMA: ${USE_OLLAMA_APP:-true}
+      # Database configuration (composed from above vars)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_OPENWEBUI_DB:-openwebui_db}
+    depends_on:
+      - ollama
+      - app
+      - postgres
+    restart: unless-stopped
+    volumes:
+      - open_webui:/app/backend/data # Persists data
+      - open_webui:/var/lib/.openwebui 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - metamcp-network
+
+  app:
+    container_name: metamcp
+    build:
+      dockerfile: Dockerfile.update
+      context: .
+    pull_policy: always
+    env_file:
+      - .env
+    ports:
+      - "12008:12008"
+    environment:
+      # Postgres connection details
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-metamcp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-m3t4mcp}
+      POSTGRES_DB: ${POSTGRES_DB:-metamcp_db}
+      
+      # Database configuration (composed from above vars)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-metamcp_db}
+      
+      # Application URL configuration
+      APP_URL: ${APP_URL:-http://localhost:12008}
+      NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:12008}
+      
+      # Auth configuration
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-your-super-secret-key-change-this-in-production}
+      
+      # Docker networking fix
+      TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL: ${TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL:-true}
+      
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - metamcp-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: metamcp-pg
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-metamcp_db}
+      POSTGRES_USER: ${POSTGRES_USER:-metamcp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-m3t4mcp}
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-9433}:5432"
+    volumes:
+      - ./pg-init-scripts:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-metamcp_user} -d ${POSTGRES_DB:-metamcp_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - metamcp-network
+
+volumes:
+  ollama:
+  open_webui:
+  ollama_data:
+  postgres_data:
+    driver: local
+
+networks:
+  metamcp-network:
+    driver: bridge
