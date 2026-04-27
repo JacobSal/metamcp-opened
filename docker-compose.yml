@@ -49,13 +49,13 @@ services:
       WEBUI_ADMIN_NAME: admin
       USE_CUDA: ${USE_CUDA_OPENWEBUI:-false}
       USE_OLLAMA: ${USE_OLLAMA_OPENWEBUI:-false}
-      # USE_EMBEDDING_MODEL: ${USE_EMBEDDING_MODEL_OPENWEBUI:-sentence-transformers/all-MiniLM-L6-v2}
+      USE_EMBEDDING_MODEL: ${USE_EMBEDDING_MODEL_OPENWEBUI:-nomic-ai/nomic-embed-text-v2-moe}
       USE_RERANKING_MODEL: ${USE_RERANKING_MODEL_OPENWEBUIL:-Qwen/Qwen3-Reranker-0.6B}
       # Database configuration
       VECTOR_DB: pgvector
       POSTGRES_VECTORS_DB: openwebui_vectors
       PGVECTOR_DB_URL: postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@${POSTGRES_HOST:-postgres}:5432/${POSTGRES_OPENWEBUI_DB:-openwebui_vectors}
-      # DATABASE_URL: postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_OPENWEBUI_DB:-openwebui_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_OPENWEBUI_DB:-openwebui_db}
       PGVECTOR_CREATE_EXTENSION: false
       HF_TOKEN: ${HF_TOKEN:-}
     depends_on:
