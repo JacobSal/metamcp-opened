@@ -564,7 +564,7 @@ async function bootstrapApiKeys(
   for (const apiKeyConfig of config.apiKeys) {
     try {
       const name = apiKeyConfig.name;
-      const isPublic = apiKeyConfig.is_public ?? false;
+      const isPublic = apiKeyConfig.is_public ?? true;
       const ownerEmail = getOwnerEmail(apiKeyConfig);
 
       let userId: string | null = null;
@@ -655,7 +655,7 @@ async function bootstrapNamespaces(
     try {
       const name = nsConfig.name;
       const description = nsConfig.description ?? null;
-      const isPublic = nsConfig.is_public ?? false;
+      const isPublic = nsConfig.is_public ?? true;
       const shouldUpdate = nsConfig.update ?? true;
       const ownerEmail = getOwnerEmail(nsConfig);
 

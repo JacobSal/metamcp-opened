@@ -1,5 +1,12 @@
 {
   "mcpServers": {
+    "git-server": {
+      "type": "STDIO",
+      "command": "uvx",
+      "args": [
+        "mcp-server-git"
+      ]
+    },
     "bioarxiv": {
       "type": "STDIO",
       "command": "uvx",
@@ -22,15 +29,6 @@
       "type": "STREAMABLE_HTTP",
       "description": "Auto-generated MCP server for endpoint \"main\"",
       "url": "http://localhost:12008/metamcp/main/mcp"
-    },
-    "Sequential-Thinking": {
-      "type": "STDIO",
-      "description": "Implements a structured sequential thinking process for breaking down complex problems, iteratively refining solutions, and exploring multiple reasoning paths.",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ]
     },
     "Web-Content-Pick": {
       "type": "STDIO",
@@ -55,12 +53,13 @@
         "Authorization": ""
       }
     },
-    "Simple-Timeserver": {
+    "server-filesystem": {
       "type": "STDIO",
-      "description": "Access accurate local and UTC time information.",
-      "command": "uvx",
+      "command": "npx",
       "args": [
-        "mcp-simple-timeserver"
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/data"
       ]
     },
     "FireCrawl": {
@@ -96,15 +95,6 @@
         "@executeautomation/playwright-mcp-server"
       ]
     },
-    "server-filesystem": {
-      "type": "STDIO",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "/data"
-      ]
-    },
     "MongoDB": {
       "type": "STDIO",
       "description": "Provides a bridge between MongoDB databases and conversational interfaces, enabling comprehensive database operations, collection management, schema inspection, and Atlas cloud service interactions with authentication and telemetry support.",
@@ -119,6 +109,14 @@
         "MDB_MCP_API_CLIENT_SECRET": "",
         "MDB_MCP_CONNECTION_STRING": ""
       }
+    },
+    "Simple-Timeserver": {
+      "type": "STDIO",
+      "description": "Access accurate local and UTC time information.",
+      "command": "uvx",
+      "args": [
+        "mcp-simple-timeserver"
+      ]
     },
     "pdf-reader": {
       "type": "STDIO",
@@ -135,6 +133,15 @@
       "args": [
         "-y",
         "server-shannon-thinking@latest"
+      ]
+    },
+    "Sequential-Thinking": {
+      "type": "STDIO",
+      "description": "Implements a structured sequential thinking process for breaking down complex problems, iteratively refining solutions, and exploring multiple reasoning paths.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
       ]
     }
   }
