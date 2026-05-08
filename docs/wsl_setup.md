@@ -72,20 +72,20 @@ bash >> git config --global user.name "Your Name"
 # EXAMPLE SETUP LINES
 
 ## Install WSL  
-wsl --install -d Ubuntu --name ubuntu-metamcp-dev
+wsl --install -d Ubuntu --name ubuntu-dev
 
 ### make username and password, either exit to ps1 and run commands below or run them in bash themselves
-wsl -d ubuntu-metamcp-dev --exec sudo apt update
-wsl -d ubuntu-metamcp-dev --exec sudo apt upgrade
-wsl -d ubuntu-metamcp-dev --exec sudo apt install python3-venv python3-pip
-wsl -d ubuntu-metamcp-dev --exec sudo apt-get install curl build-essential libssl-dev
-wsl -d ubuntu-metamcp-dev --exec curl -LsSf https://astral.sh/uv/install.sh | sh
-wsl -d ubuntu-metamcp-dev --exec sudo apt install wslu
-wsl -d ubuntu-metamcp-dev --exec sudo apt install npm
-wsl -d ubuntu-metamcp-dev --exec sudo npm install -g pnpm
+wsl -d ubuntu-dev --exec sudo apt update
+wsl -d ubuntu-dev --exec sudo apt upgrade
+wsl -d ubuntu-dev --exec sudo apt install python3-venv python3-pip
+wsl -d ubuntu-dev --exec sudo apt-get install curl build-essential libssl-dev
+<!-- wsl -d ubuntu-dev --exec curl -LsSf https://astral.sh/uv/install.sh | sh -->
+wsl -d ubuntu-dev --exec sudo apt install wslu
+wsl -d ubuntu-dev --exec sudo apt install npm
+wsl -d ubuntu-dev --exec sudo npm install -g pnpm
 
 ### Turn on WSL in Docker Desktop, and then run
-wsl -d ubuntu-metamcp-dev --exec sudo usermod -aG docker $USER
+wsl -d ubuntu-dev --exec sudo usermod -aG docker $USER
 
 ## Install Nvidia-Container-Toolkit
 curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \

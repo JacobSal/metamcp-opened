@@ -10,7 +10,8 @@ services:
       - "11434:11434"
     environment:
       OLLAMA_MAX_LOADED_MODELS: 4
-      OLLAMA_NUM_PARALLEL: 4
+      OLLAMA_NUM_PARALLEL: 3
+      OLLAMA_CONTEXT_LENGTH: 30000
       # OLLAMA_NUM_CTX: 100000
       # OLLAMA_VULKAN: true
     volumes:
@@ -27,7 +28,7 @@ services:
 
   # ── Open WebUI ───────────────────────────────────────────────────────────
   openwebui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.9.0
     container_name: webui
     env_file: .env
     ports:
@@ -35,28 +36,34 @@ services:
     environment:
       # Ollama
       OLLAMA_BASE_URL: "http://ollama:11434"
-      OLLAMA_API_BASE_URL: "http://ollama:11434/api"
+      USE_OLLAMA_DOCKER: false
       # APP_URL: ${APP_URL:-http://app:12008}
-      METAMCP_URL: "http://app:12008"
-      USE_CUDA: "true"
-      USE_OLLAMA: "false"
+      APP_URL: "http://app:12008"
+      PG_URL: "http://postgres:5432"
+      USE_CUDA_DOCKER: true
+      DOCKER: true
+      # USE_OLLAMA: false # Force disable Ollama integration (for testing without Ollama or if using a different LLM provider)
       # Embedding / reranking
-      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-nomic-ai/nomic-embed-text-v2-moe}
+      RAG_EMBEDDING_BATCH_SIZE: 16
+      RAG_EMBEDDING_ENGINE: "ollama"
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-nomic-embed-text-v2-moe}
       RAG_RERANKING_MODEL: ${RAG_RERANKING_MODEL:-Qwen/Qwen3-Reranker-0.6B}
       HF_TOKEN: ${HF_TOKEN:-}
       # Postgres — main app DB and vector DB are separate
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@postgres:5432/${POSTGRES_OPENWEBUI_DB:-openwebui_db}"
       VECTOR_DB: pgvector
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@postgres:5432/${POSTGRES_OPENWEBUI_DB:-openwebui_db}"
       PGVECTOR_DB_URL: "postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@postgres:5432/${POSTGRES_OPENWEBUI_VECTORS_DB:-openwebui_vectors}"
-      PGVECTOR_CREATE_EXTENSION: "false"
+      PGVECTOR_CREATE_EXTENSION: false # Set to true if the pgvector extension is not already created in the Postgres container
       # Admin bootstrap (change in .env for production)
       WEBUI_ADMIN_EMAIL: ${WEBUI_ADMIN_EMAIL:-admin@localhost}
       WEBUI_ADMIN_PASSWORD: ${WEBUI_ADMIN_PASSWORD:-admin}
       WEBUI_ADMIN_NAME: ${WEBUI_ADMIN_NAME:-admin}
     volumes:
-      - open_webui:/var/lib/.openwebui
-      - ${DOCUMENTS_PATH:-./data/documents}:/data/documents
-      - ${PROJECTS_PATH:-./data/projects}:/data/projects
+      # - open_webui:/var/lib/.openwebui
+      - open_webui:/app/backend/data
+      # - ${DOCUMENTS_PATH:-./mnt/documents}:/mnt/documents
+      # - ${PROJECTS_PATH:-./mnt/projects}:/mnt/projects
+      - ${USER_PATH:-./mnt/}:/mnt
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -83,13 +90,17 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-m3t4mcp}
       POSTGRES_DB: ${POSTGRES_DB:-metamcp_db}
       DATABASE_URL: "postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@postgres:5432/${POSTGRES_DB:-metamcp_db}"
-      APP_URL: ${APP_URL:-http://localhost:12008}
-      NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:12008}
+      # APP_URL: ${APP_URL:-http://localhost:12008}
+      APP_URL: http://localhost:12008
+      NEXT_PUBLIC_APP_URL: "http://localhost:12008"
+      # NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:12008}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-in-production}
-      TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL: "true"
+      TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL: ${TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL:-true}
     volumes:
-      - ${DOCUMENTS_PATH:-./data/documents}:/data/documents
-      - ${PROJECTS_PATH:-./data/projects}:/data/projects
+      # - ${DOCUMENTS_PATH:-./data/documents}:/data/documents
+      # - ${PROJECTS_PATH:-./data/projects}:/data/projects
+      - ${USER_PATH:-./mnt/}:/mnt
+      - /var/run/docker.sock:/var/run/docker.sock # maybe allow docker stdio integrations?
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

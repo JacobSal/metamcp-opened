@@ -107,6 +107,8 @@ RUN npm install -g server-shannon-thinking@latest
 RUN npm install -g @modelcontextprotocol/server-filesystem
 # RUN npm install -f @sylphyx/pdf-reader-mcp
 RUN uv tool install mcp-server-fetch
+RUN uv tool install mcp-server-git
+RUN uv tool install "arxiv-mcp-server[pdf]"
 # (04/09/2026) JS, when preinstalling uv packages, you need to call: 
 # uvx --from <package> <command> --args <args>, when adding it to your mcp-server list 
 # in metamcp
