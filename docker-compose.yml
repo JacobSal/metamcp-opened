@@ -4,25 +4,68 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
-    command: serve
+    entrypoint: /entrypoint-ollama.sh
     env_file: .env
     ports:
       - "11434:11434"
     environment:
-      OLLAMA_MAX_LOADED_MODELS: 4
-      OLLAMA_NUM_PARALLEL: 3
-      OLLAMA_CONTEXT_LENGTH: 30000
-      # OLLAMA_NUM_CTX: 100000
-      # OLLAMA_VULKAN: true
+      # Model Configuration
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:e4b}
+
+      # GPU Optimization for GTX 3080 Ti (12GB) + GTX 1060 (3GB)
+      # Allow both GPUs to be used
+      CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-0,1}
+
+      # GPU Memory Management
+      # 2GB overhead for 3080 Ti (high-end card with more features)
+      OLLAMA_GPU_OVERHEAD: ${OLLAMA_GPU_OVERHEAD:-2048}
+
+      # Flash Attention for better memory efficiency with larger context
+      OLLAMA_FLASH_ATTENTION: ${OLLAMA_FLASH_ATTENTION:-1}
+
+      # Parallel inference requests - balanced for 12GB VRAM
+      # gemma4:e4b is ~7GB, allows ~1-2 parallel requests
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-2}
+
+      # Context window optimization
+      # gemma4 supports up to 32k context, but scaled for VRAM constraints
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+
+      # Maximum models to keep loaded in VRAM
+      # With 12GB, keep 1-2 models loaded
+      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-2}
+
+      # Thread optimization for CPU context
+      OLLAMA_NUM_THREAD: ${OLLAMA_NUM_THREAD:-16}
+
+      # Memory optimization flags
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
+
+      # LLM Inference settings
+      # num_gpu controls how many layers run on GPU (not number of GPUs)
+      # For gemma4:e4b with 12GB, offload most layers to GPU
+      OLLAMA_LLM_NUM_GPU: ${OLLAMA_LLM_NUM_GPU:-999}
+
+      # Reduce context length for lower VRAM footprint if needed
+      # OLLAMA_NUM_CTX: 4096  # Uncomment for tighter VRAM constraints
+
+      # Debug/Monitoring (set to 1 to enable detailed logging)
+      OLLAMA_DEBUG: ${OLLAMA_DEBUG:-0}
+
+      # Resource limits
+      OLLAMA_VERBOSE: ${OLLAMA_VERBOSE:-false}
     volumes:
       - ollama_data:/root/.ollama
+      - ./entrypoint-ollama.sh:/entrypoint-ollama.sh:ro
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: ${OLLAMA_GPU_COUNT:-1}
+              device_ids: ['0', '1']  # Use both GTX 3080 Ti (0) and GTX 1060 (1)
               capabilities: [gpu]
+        limits:
+          memory: 16G  # Limit container memory to prevent system swap
     networks:
       - metamcp-network
 
