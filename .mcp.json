@@ -1,0 +1,78 @@
+{
+  "enabledMcpjsonServers": [
+    "memory",
+    "sequentialthinking",
+    "zotero",
+    "mcp-docs",
+    "filesystem",
+    "pdf-mcp",
+    "latex-server",
+    "metamcp"
+  ],
+  "mcpServers": {
+    "memory": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "mcp-docs": {
+      "type": "http",
+      "url": "https://modelcontextprotocol.io/mcp"
+    },
+    "filesystem": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:/Users/jsalm/Documents/GitHub/llm_research_writing_kit",
+        "C:/Users/jsalm/Documents/GitHub/llm_research_writing_kit/career_files"
+      ]
+    },
+    "sequentialthinking": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "zotero": {
+      "command": "C:\\Users\\jsalm\\.local\\bin\\zotero-mcp.exe",
+      "env": {
+        "ZOTERO_LOCAL": "true",
+        "ZOTERO_EMBEDDING_MODEL": "default",
+        "ZOTERO_API_KEY": "PUs9WMJocUP11gjlkjFgSvxv",
+        "ZOTERO_LIBRARY_ID": "13437835"
+      }
+    },
+    "latex-server": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "C:/Users/jsalm/Documents/GitHub/mcp-latex-server",
+        "run",
+        "latex_server.py"
+      ],
+      "env": {
+        "LATEX_SERVER_BASE_PATH": "C:/Users/jsalm/Documents/GitHub"
+      }
+    },
+    "metamcp": {
+      "command": "uvx",
+      "args": [
+        "mcp-proxy",
+        "http://localhost:12008/metamcp/main/sse"
+      ]
+    },
+    "pdf-mcp": {
+      "command": "pdf-mcp"
+    }
+  }
+}
