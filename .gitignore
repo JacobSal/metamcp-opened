@@ -2,7 +2,7 @@
 
 /knowledge_base/
 */knowledge_base/
-./__archive
+*/__archive
 
 # Dependencies
 node_modules
