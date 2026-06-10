@@ -4,7 +4,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
-    entrypoint: /entrypoint-ollama.sh
+    entrypoint: bash /entrypoint-ollama.sh
     env_file: .env
     ports:
       - "11434:11434"
@@ -29,7 +29,7 @@ services:
 
       # Context window optimization
       # gemma4 supports up to 32k context, but scaled for VRAM constraints
-      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-2048}
 
       # Maximum models to keep loaded in VRAM
       # With 12GB, keep 1-2 models loaded
@@ -110,9 +110,12 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - ollama
-      - app
-      - postgres
+      ollama:
+        condition: service_started
+      app:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - metamcp-network

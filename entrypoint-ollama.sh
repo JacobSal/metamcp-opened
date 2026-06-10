@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 # Color output
 RED='\033[0;31m'
@@ -11,54 +10,41 @@ NC='\033[0m' # No Color
 MODEL_NAME="${OLLAMA_MODEL:-gemma4:e4b}"
 
 echo -e "${YELLOW}[Ollama Entrypoint]${NC} Model to load: ${MODEL_NAME}"
-
-# Function to check if model exists
-model_exists() {
-    # Call ollama list and check if model name is in output
-    # This requires ollama serve to be running in background
-    timeout 10 bash -c "curl -s http://localhost:11434/api/tags | grep -q '\"name\":\"'${MODEL_NAME}'\"'" 2>/dev/null
-    return $?
-}
-
-# Start ollama in background
 echo -e "${YELLOW}[Ollama Entrypoint]${NC} Starting Ollama server..."
-ollama serve &
+
+# Start ollama in foreground but let it initialize first
+# We'll periodically check if it's responsive
+ollama serve 2>&1 &
 OLLAMA_PID=$!
 
-# Wait for ollama to be ready
-echo -e "${YELLOW}[Ollama Entrypoint]${NC} Waiting for Ollama to be ready..."
-sleep 5
-max_attempts=30
-attempt=0
-while ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; do
-    attempt=$((attempt + 1))
-    if [ $attempt -ge $max_attempts ]; then
-        echo -e "${RED}[Ollama Entrypoint]${NC} Ollama failed to start after ${max_attempts} attempts"
-        kill $OLLAMA_PID 2>/dev/null || true
+# Wait for API to be responsive
+echo -e "${YELLOW}[Ollama Entrypoint]${NC} Waiting for Ollama API..."
+for i in {1..120}; do
+    if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+        echo -e "${GREEN}[Ollama Entrypoint]${NC} Ollama API is ready!"
+        break
+    fi
+
+    # Check if process died
+    if ! kill -0 $OLLAMA_PID 2>/dev/null; then
+        echo -e "${RED}[Ollama Entrypoint]${NC} Ollama process exited unexpectedly"
         exit 1
     fi
-    echo -e "${YELLOW}[Ollama Entrypoint]${NC} Waiting for Ollama API... (attempt $attempt/$max_attempts)"
-    sleep 2
+
+    sleep 1
 done
 
-echo -e "${GREEN}[Ollama Entrypoint]${NC} Ollama API is ready!"
-
-# Check if model exists and pull if needed
+# Pre-pull model in background if it doesn't exist
 echo -e "${YELLOW}[Ollama Entrypoint]${NC} Checking if model ${MODEL_NAME} exists..."
-if model_exists; then
-    echo -e "${GREEN}[Ollama Entrypoint]${NC} Model ${MODEL_NAME} already exists, skipping pull"
+if ! curl -s http://localhost:11434/api/tags 2>/dev/null | grep -q "\"name\":\"${MODEL_NAME}\""; then
+    echo -e "${YELLOW}[Ollama Entrypoint]${NC} Pulling model ${MODEL_NAME} in background..."
+    timeout 600 ollama pull ${MODEL_NAME} > /dev/null 2>&1 &
+    PULL_PID=$!
 else
-    echo -e "${YELLOW}[Ollama Entrypoint]${NC} Model ${MODEL_NAME} not found, pulling..."
-    if ollama pull ${MODEL_NAME}; then
-        echo -e "${GREEN}[Ollama Entrypoint]${NC} Successfully pulled ${MODEL_NAME}"
-    else
-        echo -e "${RED}[Ollama Entrypoint]${NC} Failed to pull ${MODEL_NAME}"
-        kill $OLLAMA_PID 2>/dev/null || true
-        exit 1
-    fi
+    echo -e "${GREEN}[Ollama Entrypoint]${NC} Model ${MODEL_NAME} already exists"
 fi
 
-echo -e "${GREEN}[Ollama Entrypoint]${NC} Setup complete! Ollama is running with model ${MODEL_NAME}"
+echo -e "${GREEN}[Ollama Entrypoint]${NC} Ollama is ready!"
 
-# Keep the process running
+# Keep ollama running
 wait $OLLAMA_PID
