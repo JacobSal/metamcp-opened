@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "PYTHONUTF8": "1"
+  },
+  "enabledPlugins": {},
+  "extraKnownMarketplaces": {
+    "research-skills": {
+      "source": {
+        "source": "directory",
+        "path": ".\\marketplaces\\research-skills"
+      }
+    },
+    "primeline-ai": {
+      "source": {
+        "source": "directory",
+        "path": ".\\marketplaces\\primeline-ai"
+      }
+    }
+  }
+}

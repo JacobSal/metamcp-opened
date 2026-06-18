@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__desktop-commander__*",
+      "mcp__firecrawl__*",
+      "mcp__pdf-mcp__*",
+      "mcp__mcp-server-git__*",
+      "mcp__latex-server__*",
+      "mcp__sequentialthinking__*", 
+      "mcp__kairn__*",
+      "mcp__context7__*",
+      "mcp__octocode__*",
+      "mcp__gitmcp__*",
+      "mcp__github__*",
+      "PowerShell(wsl -d Ubuntu *)",
+      "Bash(claude mcp *)",
+      "Bash(npm *)",
+      "Bash(python *)",
+      "Bash(choco list *)",
+      "PowerShell(choco install *)",
+      "PowerShell(Select-String *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true
+}
