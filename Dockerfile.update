@@ -49,9 +49,7 @@ COPY . .
 # Build all packages and apps
 RUN pnpm build
 
-RUN sed -i -e "s/30000/600000/" \
-    "node_modules/.pnpm/next@15.5.12_react-dom@19.1.2_react@19.1.2__react@19.1.2/node_modules/next/dist/server/lib/router-utils/proxy-request.js" \
-    "node_modules/.pnpm/next@15.5.12_react-dom@19.1.2_react@19.1.2__react@19.1.2/node_modules/next/dist/esm/server/lib/router-utils/proxy-request.js"
+RUN find node_modules -path "*/next/dist/*/lib/router-utils/proxy-request.js" -type f -exec sed -i 's/30000/600000/g' {} + || true
 
 # Production runner stage
 FROM base AS runner
@@ -86,6 +84,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/packages ./packages
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
 COPY --from=builder --chown=nextjs:nodejs /app/pnpm-workspace.yaml ./
+
+# Run pnpm non-interactively: it must purge dev deps from the copied node_modules,
+# which otherwise prompts for confirmation and fails in Docker's no-TTY build.
+ENV CI=true
 
 # Install production dependencies only
 RUN pnpm install --prod
