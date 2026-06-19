@@ -102,14 +102,17 @@ RUN cd apps/backend && pnpm add drizzle-kit@0.31.1
 # (04/09/2026) JS, this just wont work if zotero isn't also install already. making new repo as a possible workaround
 
 #-- small packages that are nice to be persistent.
-# RUN npm install -g @modelcontextprotocol/server-sequential-thinking
-# RUN npm install -g server-shannon-thinking@latest
+RUN npm install -g @modelcontextprotocol/server-sequential-thinking
+RUN npm install -g server-shannon-thinking@latest
 # RUN npm install -g @modelcontextprotocol/server-filesystem
-# RUN npm install -f @sylphyx/pdf-reader-mcp
+RUN npm install -g @upstash/context7-mcp
+RUN npm install -g octocode-mcp@latest
 RUN npm install -g firecrawl
+RUN npm install -g @playwright/mcp@latest
 RUN npm install -g @wonderwhy-er/desktop-commander@latest
 RUN uv tool install kairn-ai
-RUN uv tool install
+RUN uv tool install pdf-mcp
+RUN apt install tesseract-ocr
 RUN uv tool install mcp-server-fetch
 RUN uv tool install mcp-server-git
 # RUN uv tool install "arxiv-mcp-server[pdf]"
