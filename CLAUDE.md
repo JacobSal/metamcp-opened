@@ -2,275 +2,102 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> Generated from repo state at commit `a78b372` on 2026-06-18. Verifiable facts (paths, ports, versions, commands) reflect that snapshot — if something here contradicts the code, trust the code and update this file.
+
 ## Project Overview
 
-**MetaMCP** is an MCP (Model Context Protocol) proxy/aggregator that lets you dynamically aggregate MCP servers into unified endpoints with middleware support. The project is a full-stack TypeScript monorepo using Turbo.
+**MetaMCP** is an MCP (Model Context Protocol) proxy/aggregator. It groups configured MCP servers into **namespaces**, exposes each namespace as a public **endpoint** (SSE, Streamable HTTP, or OpenAPI), and applies **middleware** to the proxied requests/responses. MetaMCP is itself an MCP server, so it plugs into any MCP client. The whole stack (Next.js frontend + Express backend + PostgreSQL) is designed to run from one Docker container.
 
-### Key Concepts
+### Core domain concepts (read these before touching proxy code)
 
-- **MCP Server**: A configuration for starting an MCP server (STDIO, SSE, or HTTP)
-- **Namespace**: Groups one or more MCP servers with unified tool management
-- **Endpoint**: Exposes a namespace via SSE or Streamable HTTP transport with authentication
-- **Middleware**: Intercepts/transforms MCP requests and responses (e.g., filter tools, apply overrides)
-- **Tool Overrides**: Customize tool name/title/description per namespace with optional annotations
+- **MCP Server** — a launch spec for an upstream MCP server: `STDIO` (`command`/`args`, e.g. `uvx`, `npx`), `SSE`, or `Streamable HTTP`. STDIO secrets resolved via raw values, `${ENV_VAR}` references, or auto-passthrough from the container env.
+- **Namespace** — a group of MCP servers. Servers/tools can be toggled per namespace, and tools can be renamed/re-described/annotated (tool overrides) per namespace.
+- **Endpoint** — a public URL bound to one namespace. Auth is API-key (`Authorization: Bearer sk_mt_...`) or MCP-spec OAuth (2025-06-18). One namespace's servers are aggregated and emitted as a single MCP server.
+- **Middleware** — intercepts MCP requests/responses at the namespace level (e.g. "filter inactive tools", audit logging). See `apps/backend/src/lib/metamcp/metamcp-middleware/`.
 
 ## Architecture
 
-### Monorepo Structure
+Turborepo monorepo, pnpm workspaces. **Package manager: `pnpm@10.29.3`, Node >= 18.**
 
-- **apps/backend** - Express.js server with tRPC, MCP hosting, database layer (Drizzle ORM)
-- **apps/frontend** - Next.js web UI for configuration and inspection
-- **packages/trpc** - Shared tRPC router and procedures
-- **packages/zod-types** - Shared Zod schemas
-- **packages/eslint-config** - Shared ESLint configuration
-- **packages/typescript-config** - Shared TypeScript configuration
-
-### High-Level Flow
-
-1. Client connects to MetaMCP endpoint (SSE, Streamable HTTP, or OpenAPI)
-2. Backend aggregates configured MCP servers for that namespace
-3. Tool requests route to appropriate MCP server
-4. Middleware applies transformations (filtering, overrides)
-5. Response returns to client
-
-### Backend Architecture
-
-- **Entry**: `apps/backend/src/index.ts` - Express server setup with tRPC and MCP routing
-- **Database**: Drizzle ORM with PostgreSQL (schema in `src/db/schema.ts`)
-- **Repositories**: Data access layer in `src/db/repositories/` for managing MCPs, namespaces, endpoints, configs
-- **Serializers**: Response transformation in `src/db/serializers/`
-- **Auth**: Better Auth for user management + API key validation
-- **MCP Proxy**: `src/lib/mcp-proxy.ts` - SSE/HTTP proxy for remote MCP endpoints
-- **MetaMCP Client**: `src/lib/metamcp/` - Manages MCP server pool, tool filtering, aggregation
-
-### Frontend Architecture
-
-- **pages/api** - tRPC routes (proxied from backend)
-- **pages** - Next.js pages for UI
-- **components** - React components (built with Radix UI + Tailwind CSS)
-- **Store**: Zustand for client state management
-
-## Development Setup
-
-### Prerequisites
-
-- Node.js >= 18
-- pnpm 9.0.0
-- Docker & Docker Compose (for PostgreSQL)
-
-### Quick Start (Local)
-
-```bash
-# Install dependencies
-pnpm install
-
-# Set up environment
-cp example.env .env
-
-# Start PostgreSQL (required for backend)
-# Then in another terminal:
-pnpm dev
+```
+apps/backend     Express 5 + tRPC server; MCP hosting/proxy; Drizzle ORM + Postgres
+apps/frontend    Next.js 15 (App Router) admin UI + MCP inspector
+packages/trpc    Shared tRPC routers (the API contract between FE and BE)
+packages/zod-types   Shared Zod schemas — the single source of truth for all I/O types
+packages/eslint-config, packages/typescript-config   shared configs
 ```
 
-The frontend runs on `http://localhost:12008` and backend on `http://localhost:12009`.
+**Two ports:** backend listens on **12009** (`apps/backend/src/index.ts`); frontend/public app is **12008** (= `APP_URL`/`NEXT_PUBLIC_APP_URL`). Only 12008 is exposed in `docker-compose.yml`; the frontend proxies to the backend. CORS is enforced against `APP_URL` — accessing via any other origin fails by design.
 
-### Quick Start (Docker, Recommended for Full Stack)
+### Request flow
+
+A client hits an endpoint → backend resolves the namespace → aggregates that namespace's MCP servers (spawning/pooling STDIO processes or proxying remote SSE/HTTP) → applies middleware (tool filtering, overrides, audit) → returns the merged tool/resource/prompt list, then routes `call_tool` to the owning upstream server.
+
+### Backend layout (`apps/backend/src/`)
+
+- `index.ts` — Express bootstrap. Note: JSON body parsing is **skipped** for `/mcp-proxy/*` and `/metamcp/*` so raw streams pass through. Mounts: `oauth` (root `.well-known`), better-auth (`/api/auth`), `routers/trpc`, `routers/mcp-proxy`, `routers/public-metamcp`.
+- `lib/metamcp/` — the heart of aggregation: `client.ts`, `metamcp-proxy.ts`, `mcp-server-pool.ts` + `metamcp-server-pool.ts` (idle/warm session pools to fight cold starts), `fetch-metamcp.ts`, `server-error-tracker.ts`, `tool-name-parser.ts`, and `metamcp-middleware/` (filter-tools, tool-overrides, audit-requests, all `*.functional.ts`).
+- `lib/admin-mcp/` — exposes MetaMCP's own admin operations as MCP tools (`tools-registry.ts`, `zod-to-mcp-schema.ts`).
+- `lib/oauth-upstream/` — OAuth against upstream MCP servers (token exchange, refresh-on-401, retry-post-auth).
+- `lib/bootstrap.service.ts` — first-run/idempotent seeding of users, API keys, namespaces, endpoints from `BOOTSTRAP_*` env vars. **Large and high-complexity — change carefully.**
+- `lib/config.service.ts` — runtime, DB-backed settings (signup toggles, MCP timeouts, session lifetime).
+- `db/` — `schema.ts` (all Drizzle tables) → `repositories/*.repo.ts` (data access) → `serializers/*.serializer.ts` (DB row → API shape). Migrations in `drizzle/`.
+- `routers/` — `trpc.ts`, `mcp-proxy/` (internal inspector proxy), `oauth/` (full OAuth provider), `public-metamcp/` (the public `sse`, `streamable-http`, and `openapi/` transports — OpenAPI targets clients like Open WebUI).
+- `trpc/*.impl.ts` — backend implementations of the tRPC procedures declared in `packages/trpc`.
+
+### Frontend layout (`apps/frontend/`)
+
+Next.js **App Router** with i18n route segments: `app/[locale]/(sidebar)/<feature>/page.tsx` (mcp-servers, namespaces, endpoints, mcp-inspector, search, settings, live-logs, audit-logs, api-keys). UI is Radix primitives + Tailwind v4 (`components/ui/`). Data via tRPC over `@trpc/react-query`; client state via Zustand; auth via better-auth client.
+
+## Commands
+
+From repo root (Turbo fans out to workspaces):
 
 ```bash
 pnpm install
-cp example.env .env
-pnpm run dev:docker
+pnpm dev                 # FE + BE in watch mode (loads .env.local via dotenv-cli)
+pnpm build               # build all workspaces
+pnpm lint                # eslint, max-warnings 0 (CI-strict)
+pnpm lint:fix
+pnpm check-types         # tsc --noEmit across workspaces
+pnpm format              # prettier on **/*.{ts,tsx,md}
+
+pnpm run dev:docker      # full stack + Postgres, hot reload (docker-compose.dev.yml)
+pnpm run dev:docker:down
+pnpm run dev:docker:clean   # also drops volumes
 ```
 
-Full stack with hot reload. Stop with `pnpm run dev:docker:down`.
-
-## Common Commands
-
-### From Root (Turbo)
+Backend-specific (`cd apps/backend`):
 
 ```bash
-pnpm dev              # Start both frontend & backend in watch mode
-pnpm build            # Build frontend (.next) and backend (dist/)
-pnpm lint             # Lint all workspaces
-pnpm lint:fix         # Fix linting issues
-pnpm format           # Format TypeScript, TSX, and Markdown with Prettier
-pnpm check-types      # Type check all workspaces (tsc)
+pnpm test                          # vitest run (once)
+pnpm test:watch
+pnpm test:coverage
+pnpm exec vitest run src/lib/metamcp/session-error.test.ts   # single test file
+pnpm db:generate:dev               # generate Drizzle migration from schema.ts (uses .env.local)
+pnpm db:migrate:dev                # apply migrations
+# non-:dev variants (db:generate / db:migrate) use .env instead of .env.local
 ```
 
-### Backend (apps/backend)
+Tests are Vitest, colocated as `*.test.ts` next to source (heaviest coverage is in `lib/metamcp/` and `lib/oauth-upstream/`). Frontend has no test suite.
 
-```bash
-pnpm dev              # Watch mode with tsx
-pnpm build            # Build with tsup
-pnpm start            # Run dist/index.js
-pnpm test             # Run Vitest once
-pnpm test:watch       # Watch mode tests
-pnpm test:coverage    # Coverage report
+## Key workflows
 
-# Database (requires .env.local)
-pnpm db:generate:dev  # Generate Drizzle migration files from schema changes
-pnpm db:migrate:dev   # Apply pending migrations
-```
+**Change an API contract:** edit/add the Zod schema in `packages/zod-types` → declare the procedure in `packages/trpc/src/routers/frontend/` → implement it in `apps/backend/src/trpc/*.impl.ts` → consume on the FE via `trpc.<router>.<proc>`. The Zod types are shared both directions — never hand-write a type that a schema can produce.
 
-### Frontend (apps/frontend)
+**Change the DB schema:** edit `apps/backend/src/db/schema.ts` → `pnpm db:generate:dev` → review generated SQL in `apps/backend/drizzle/` → `pnpm db:migrate:dev` → update the relevant `*.repo.ts` and `*.serializer.ts`.
 
-```bash
-pnpm dev              # Next.js dev server (port 12008, Turbopack)
-pnpm build            # Production build
-pnpm start            # Run production server
-pnpm lint             # Next.js linting
-```
+**Before committing:** `pnpm lint:fix && pnpm format && pnpm check-types` (lint is enforced at max-warnings 0), plus `pnpm test` in `apps/backend` for affected areas. **These checks verify the backend only** — the frontend has no automated tests, so passing them does NOT mean a UI change works. Verify frontend changes manually via `pnpm run dev:docker` + the affected page (the MCP Inspector confirms an endpoint serves tools).
 
-## Key Files & Patterns
+## Environment & config
 
-### Database & ORM (Backend)
+- Local dev (`pnpm dev`) reads `.env.local`; Docker and DB scripts read `.env`. Start from `example.env`.
+- Any env var consumed by dev processes must be listed in `turbo.json` `globalEnv` (it already enumerates the full set: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `APP_URL`, `OIDC_*`, all `BOOTSTRAP_*`, `LOG_LEVEL`, session/connection tuning, etc.).
+- OIDC/SSO is optional (`OIDC_CLIENT_ID/SECRET/DISCOVERY_URL`, PKCE on by default).
+- `LOG_LEVEL` controls console mirroring (`all` | `info` | `errors-only` | `none`); files `app.log` (DEBUG/INFO/WARN) and `error.log` always written.
 
-- **Schema**: `apps/backend/src/db/schema.ts` - All Drizzle table definitions
-- **Migrations**: `apps/backend/drizzle/` - SQL migration files (auto-generated)
-- **Config**: `apps/backend/drizzle.config.ts` - Drizzle Kit configuration
-- **Repositories**: `apps/backend/src/db/repositories/` - Data access (MCPs, namespaces, endpoints, API keys, configs, etc.)
+## Gotchas
 
-### tRPC Procedures (Backend API)
-
-- **Router**: `packages/trpc/src/router/` - Define tRPC procedures (queries/mutations)
-- **Backend handlers**: `apps/backend/src/lib/` - Implementations for tRPC procedures
-- **Frontend client**: Auto-generated from backend router, used in `apps/frontend` via `@trpc/react-query`
-
-### MCP Aggregation (Backend)
-
-- **MCP Proxy**: `apps/backend/src/lib/mcp-proxy.ts` - Remote endpoint proxy (SSE/HTTP)
-- **MetaMCP Client**: `apps/backend/src/lib/metamcp/client.ts` - Aggregates registered MCP servers
-- **Server Pool**: `apps/backend/src/lib/metamcp/mcp-server-pool.ts` - Maintains pool of spawned STDIO MCP servers
-- **Middleware**: `apps/backend/src/lib/metamcp/metamcp-middleware/` - Tool filtering, overrides
-- **Proxy Routes**: `apps/backend/src/index.ts` - SSE/Streamable HTTP endpoints
-
-### Configuration & Setup
-
-- **Root**: `.env.local` (local dev) or `.env` (production)
-- **Dev Environment**: `.devcontainer/` - VS Code dev container setup
-- **Docker**: `docker-compose.dev.yml` and `Dockerfile.dev` for local development
-- **Example Env**: `example.env` - Template for all required variables
-
-## Testing
-
-### Backend
-
-- **Framework**: Vitest
-- **Location**: Test files colocated with source files (e.g., `file.test.ts`)
-- **Run single test**: `pnpm test -- --run path/to/file.test.ts` (in apps/backend)
-- **Watch**: `pnpm test:watch` (in apps/backend)
-
-### Frontend
-
-- No test scripts visible in package.json; manual testing required during dev
-
-## Code Style & Linting
-
-- **ESLint**: Enforces code quality (max-warnings: 0, must pass)
-- **Prettier**: Auto-formats code (TypeScript, TSX, Markdown)
-- **TypeScript**: Strict mode enabled (check-types: tsc --noEmit)
-- **Import order**: Via eslint-config, standardized across workspace
-
-**Before committing**:
-```bash
-pnpm lint:fix       # Auto-fix linting issues
-pnpm format         # Auto-format code
-pnpm check-types    # Ensure no type errors
-```
-
-## Environment Variables
-
-### Key Variables (see example.env for full list)
-
-```bash
-# Database
-DATABASE_URL=postgresql://...
-POSTGRES_CA_CERT=...  # Optional for SSL
-
-# Authentication & Security
-BETTER_AUTH_SECRET=...
-NEXT_PUBLIC_APP_URL=...  # Frontend public URL
-APP_URL=...              # Backend URL for redirect URIs
-
-# OIDC/SSO (Optional)
-OIDC_CLIENT_ID=...
-OIDC_CLIENT_SECRET=...
-OIDC_DISCOVERY_URL=...
-OIDC_AUTHORIZATION_URL=...
-
-# Development
-NODE_ENV=development
-LOG_LEVEL=all|info|errors-only|none
-```
-
-For local dev with `pnpm dev`, use `.env.local` (dotenv-cli will load it automatically).
-
-For Docker dev with `pnpm run dev:docker`, use `.env` (mapped to container).
-
-## Debugging
-
-### Backend
-
-- Add `debugger;` statements and run `pnpm dev` in apps/backend
-- Check `app.log` and `error.log` in the running container for full logs
-- Use `LOG_LEVEL=all` for verbose console output
-
-### Frontend
-
-- Use browser DevTools for React/Next.js debugging
-- TanStack React Query DevTools mounted in dev mode for API inspection
-
-## Deployment
-
-### Docker Build
-
-```bash
-docker build -t metamcp:latest .
-docker compose up -d
-```
-
-The main Dockerfile builds the entire monorepo and runs both services.
-
-### Production Notes
-
-- Recommend 2GB-4GB RAM minimum
-- Use Nginx reverse proxy with SSE configuration (see `nginx.conf.example`)
-- Enforce CORS on APP_URL (MetaMCP validates origin)
-- Use API keys for external endpoint access (header: `Authorization: Bearer <api-key>`)
-
-## Common Tasks
-
-### Adding a New tRPC Procedure
-
-1. Define in `packages/trpc/src/router/` (Zod input/output schemas from `@repo/zod-types`)
-2. Implement handler in `apps/backend/src/` (usually `src/lib/`)
-3. Call from frontend via `trpc.yourRouter.yourProcedure.useQuery()`
-
-### Modifying Database Schema
-
-1. Edit `apps/backend/src/db/schema.ts` (add/modify Drizzle table)
-2. Run `pnpm db:generate:dev` in apps/backend (creates migration)
-3. Review the SQL in `apps/backend/drizzle/`
-4. Run `pnpm db:migrate:dev` to apply
-5. Update repositories in `apps/backend/src/db/repositories/` if needed
-
-### Adding a New MCP Server Type
-
-1. Register in config (via UI or database)
-2. Backend auto-discovers via `metamcp-client` and pools STDIO servers or proxies remote endpoints
-3. Tools appear in namespace UI after registration
-
-### Customizing Tool Overrides
-
-1. Open namespace → Tools tab in UI
-2. Expand a tool and edit name/title/description inline
-3. Optionally add JSON annotations blob
-4. Changes persisted to database, applied to all clients of that endpoint
-
-## Notes for Future Work
-
-- Headless Admin API access is planned (roadmap)
-- Dynamic tool search/filtering on endpoints (coming)
-- More middleware types (logging, validation, scanning)
-- Chat/Agent playground
-- Testing & evaluation for MCP tool selection optimization
+- **Cold start:** idle MCP sessions are pre-allocated per server (default 1) to cut latency. Upstream STDIO servers needing deps beyond `uvx`/`npx` require a custom `Dockerfile`.
+- **Auth quirks:** `?api_key=` query param works for Streamable HTTP and OpenAPI but **not** SSE — use the `Authorization` header. STDIO-only clients (e.g. Claude Desktop) need a local bridge like `mcp-proxy`, not `mcp-remote`.
+- **Raw stream routes:** don't add JSON-body middleware to `/mcp-proxy/*` or `/metamcp/*`.

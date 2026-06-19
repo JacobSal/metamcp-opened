@@ -15,18 +15,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-m3t4mcp}
       POSTGRES_DB: ${POSTGRES_DB:-metamcp_db}
       DATABASE_URL: "postgresql://${POSTGRES_USER:-metamcp_user}:${POSTGRES_PASSWORD:-m3t4mcp}@postgres:5432/${POSTGRES_DB:-metamcp_db}"
-      # APP_URL: ${APP_URL:-http://localhost:12008}
       APP_URL: http://localhost:12008
       NEXT_PUBLIC_APP_URL: "http://localhost:12008"
-      # NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:12008}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-in-production}
       TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL: ${TRANSFORM_LOCALHOST_TO_DOCKER_INTERNAL:-true}
-    volumes:
-      # - ${DOCUMENTS_PATH:-./data/documents}:/data/documents
-      # - ${PROJECTS_PATH:-./data/projects}:/data/projects
-      - ${USER_PATH:-./mnt/}:/mnt
-      # - /var/run/docker.sock:/var/run/docker.sock # maybe allow docker stdio integrations?
-      - /kairn/brain:/kairn/brain # serve kairn to here?
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -34,6 +26,11 @@ services:
         condition: service_healthy
     restart: "no"
     volumes:
+      # - ${DOCUMENTS_PATH:-./data/documents}:/data/documents
+      # - ${PROJECTS_PATH:-./data/projects}:/data/projects
+      - ${USER_PATH:-./mnt/}:/mnt
+      # - /var/run/docker.sock:/var/run/docker.sock # maybe allow docker stdio integrations?
+      - ./mcp-assets/:/mcp-assets # serve kairn to here?
       # Persist the uv cache across container recreates. Without this, every
       # `docker compose up -d`/recreate wipes the writable layer and the next
       # `uvx <pkg>@latest` spawn for each STDIO server cold-installs from
