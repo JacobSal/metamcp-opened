@@ -49,3 +49,6 @@ yarn-error.log*
 # Docker Files
 docker-compose.override.yml
 compose.override.yml
+
+# Quantum Lens local workspace (analyses, system-context, lens config)
+.quantum-lens/

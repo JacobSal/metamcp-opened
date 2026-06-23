@@ -24,3 +24,7 @@ These are prose statements of rules that are *also* enforced (or enforceable) in
 ## Auth quirk worth remembering
 
 `?api_key=` works for Streamable HTTP and OpenAPI but **not** SSE — use the `Authorization: Bearer` header.
+
+## Complexity & metrics reference
+
+**[PMAT_CONTEXT.md](./PMAT_CONTEXT.md)** — auto-generated per-file complexity report. Consult it when choosing where to make changes or assessing refactor risk. Do not edit it; regenerate via the command in its header.

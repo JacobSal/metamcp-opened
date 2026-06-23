@@ -101,3 +101,7 @@ Tests are Vitest, colocated as `*.test.ts` next to source (heaviest coverage is 
 - **Cold start:** idle MCP sessions are pre-allocated per server (default 1) to cut latency. Upstream STDIO servers needing deps beyond `uvx`/`npx` require a custom `Dockerfile`.
 - **Auth quirks:** `?api_key=` query param works for Streamable HTTP and OpenAPI but **not** SSE — use the `Authorization` header. STDIO-only clients (e.g. Claude Desktop) need a local bridge like `mcp-proxy`, not `mcp-remote`.
 - **Raw stream routes:** don't add JSON-body middleware to `/mcp-proxy/*` or `/metamcp/*`.
+
+## Generated reports
+
+- **[PMAT_CONTEXT.md](./PMAT_CONTEXT.md)** — Auto-generated complexity/metrics report (pmat v3.x, `--format llm-optimized`). Covers file-level cyclomatic/cognitive complexity, function signatures, Big-O estimates, and churn for all TypeScript source files. Regenerate command is in the file header. Use it to identify hotspots before refactoring; do not hand-edit it.
