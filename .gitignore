@@ -3,6 +3,7 @@
 knowledge_base/*
 __archive/*
 .claudeignore
+.quantum-lens
 
 # Dependencies
 node_modules
