@@ -1,0 +1,10 @@
+{
+  "session_name": "orch-metamcp-opened",
+  "project": "metamcp-opened",
+  "started": "2026-06-23T22:12:47Z",
+  "status": "running",
+  "cycle_count": 60,
+  "workers": [],
+  "last_cycle": "2026-06-24T03:10:03Z",
+  "current_interval": 300
+}

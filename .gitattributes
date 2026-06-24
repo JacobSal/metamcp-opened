@@ -1,0 +1,10 @@
+# Normalize all text files to LF in the repo and on checkout.
+# Prevents prettier ␍ warnings when developing on Windows and ensures
+# shell scripts run unmodified inside Linux containers.
+* text=auto eol=lf
+
+# Explicitly LF — belt-and-suspenders for files that must not get CRLF
+# even if git's text-auto detection hesitates.
+*.sh text eol=lf
+docker-entrypoint*.sh text eol=lf
+pg-init-scripts/*.sh text eol=lf

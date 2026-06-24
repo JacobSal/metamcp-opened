@@ -68,7 +68,8 @@ RUN apt-get update && apt-get install -y curl postgresql-client && apt-get clean
 # Create non-root user with proper home directory
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 --home /home/nextjs nextjs && \
-    mkdir -p /home/nextjs/.cache/node/corepack /home/nextjs/.cache/uv && \
+    mkdir -p /home/nextjs/.cache/node/corepack /home/nextjs/.cache/uv \
+            /home/nextjs/.local/share/pnpm && \
     chown -R nextjs:nodejs /home/nextjs
 
 # Copy built applications
@@ -89,11 +90,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/pnpm-workspace.yaml ./
 # which otherwise prompts for confirmation and fails in Docker's no-TTY build.
 ENV CI=true
 
-# Install production dependencies only
+# Install production dependencies only.
+# drizzle-kit is a runtime dependency of apps/backend (migrations run on every
+# container start via `pnpm exec drizzle-kit migrate` in docker-entrypoint.sh),
+# so --prod keeps it. Do NOT re-add it with `pnpm add` afterwards: that re-resolves
+# the workspace incl. devDeps against this prod-only modules dir and fails with
+# ERR_PNPM_INCLUDED_DEPS_CONFLICT.
 RUN pnpm install --prod
-
-# Install drizzle-kit locally in backend for migrations
-RUN cd apps/backend && pnpm add drizzle-kit@0.31.1
 
 # ================================================================
 # Install Node.js packages globally
@@ -112,11 +115,11 @@ RUN npm install -g octocode-mcp@latest
 RUN npm install -g firecrawl
 RUN npm install -g @playwright/mcp@latest
 RUN npm install -g @wonderwhy-er/desktop-commander@latest
-RUN uv tool install kairn-ai
-RUN uv tool install pdf-mcp
-RUN apt install tesseract-ocr
-RUN uv tool install mcp-server-fetch
-RUN uv tool install mcp-server-git
+# RUN uv tool install kairn-ai
+# RUN uv tool install pdf-mcp
+RUN apt-get update && apt-get install -y tesseract-ocr && apt-get clean && rm -rf /var/lib/apt/lists/*
+# RUN uv tool install mcp-server-fetch
+# RUN uv tool install mcp-server-git
 # RUN uv tool install "arxiv-mcp-server[pdf]"
 # (04/09/2026) JS, when preinstalling uv packages, you need to call: 
 # uvx --from <package> <command> --args <args>, when adding it to your mcp-server list 

@@ -8,14 +8,13 @@
     "research-skills": {
       "source": {
         "source": "directory",
-        "path": ".\\marketplaces\\research-skills"
+        "path": "C:\\Users\\jsalminen\\Documents\\GitHub\\usefull_llm_tools\\marketplaces\\research-skills"
       }
     },
     "primeline-ai": {
       "source": {
         "source": "directory",
-        "path": ".\\marketplaces\\primeline-ai"
+        "path": "C:\\Users\\jsalminen\\Documents\\GitHub\\usefull_llm_tools\\marketplaces\\primeline-ai"
       }
     }
   }
-}
