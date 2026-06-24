@@ -4,6 +4,8 @@ knowledge_base/*
 __archive/*
 .claudeignore
 .quantum-lens
+.mcp.json
+.docs/mcp_json_save/
 
 # Dependencies
 node_modules

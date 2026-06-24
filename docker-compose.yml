@@ -28,7 +28,8 @@ services:
     volumes:
       # - ${DOCUMENTS_PATH:-./data/documents}:/data/documents
       # - ${PROJECTS_PATH:-./data/projects}:/data/projects
-      - ${USER_PATH:-C:\\Users\\jsalminen}:/mnt
+      - ${USER_PATH:-C:\\Users\\jsalminen}:/mnt/c
+      - ${USER_PATH:-M:\\jsalminen\\GitHub}:/mnt/m
       # - /var/run/docker.sock:/var/run/docker.sock # maybe allow docker stdio integrations?
       - ./mcp-assets/:/mcp-assets # serve kairn to here?
       # Persist the uv cache across container recreates. Without this, every
@@ -39,8 +40,10 @@ services:
       # nextjs (uid 1001) so a fresh named volume inherits correct ownership.
       - uv_cache:/home/nextjs/.cache/uv
       - nextjs:/home/nextjs
+      - ./docker-entrypoint.sh:/docker-entrypoint.sh
     networks:
       - metamcp-network
+    # command: ["./docker-entrypoint.sh"]
 
   # ── Postgres + pgvector ──────────────────────────────────────────────────
   postgres:
