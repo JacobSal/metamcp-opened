@@ -39,8 +39,8 @@ services:
       # in error_status=ERROR. The image ships /home/nextjs/.cache/uv owned by
       # nextjs (uid 1001) so a fresh named volume inherits correct ownership.
       - uv_cache:/home/nextjs/.cache/uv
-      - nextjs:/home/nextjs
-      - ./docker-entrypoint.sh:/docker-entrypoint.sh
+      # - nextjs:/home/nextjs
+      # - ./docker-entrypoint.sh:/docker-entrypoint.sh
     networks:
       - metamcp-network
     # command: ["./docker-entrypoint.sh"]

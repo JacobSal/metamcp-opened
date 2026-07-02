@@ -1,18 +1,10 @@
 #!/bin/bash
 set -e
 
-echo "Creating multiple databases..."
+echo "Enabling pgvector in ${POSTGRES_DB}..."
 
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<-EOSQL
-    CREATE DATABASE openwebui_db;
-    CREATE DATABASE openwebui_vectors;
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+    CREATE EXTENSION IF NOT EXISTS vector;
 EOSQL
 
-for db in openwebui_vectors "$POSTGRES_DB"; do
-    echo "Enabling pgvector in $db..."
-    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$db" <<-EOSQL
-        CREATE EXTENSION IF NOT EXISTS vector;
-EOSQL
-done
-
-echo "Databases and extensions created."
+echo "Extensions created."
