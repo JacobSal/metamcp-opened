@@ -1,1 +1,0 @@
-uvx --from kairn-ai kairn init /mcp-assets/brain

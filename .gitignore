@@ -7,6 +7,7 @@ __archive/*
 .mcp.json
 .docs/mcp_json_save/
 .debug-backup/
+mcp-assets/
 
 # Dependencies
 node_modules
