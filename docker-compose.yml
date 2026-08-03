@@ -71,8 +71,15 @@ services:
 
 # ── Volumes ──────────────────────────────────────────────────────────────────
 volumes:
+  # DB data is declared `external` so Compose NEVER destroys it — not even on
+  # `docker compose down -v`. A stray `-v`/`--volumes` (or the repo's own
+  # `dev:docker:clean`) can no longer wipe your MCP servers / namespaces /
+  # endpoints. `name:` pins this to the pre-existing project-prefixed volume so
+  # current data is preserved. One-time create on a fresh machine:
+  #   docker volume create metamcp-opened_postgres_data
   postgres_data:
-    driver: local
+    external: true
+    name: metamcp-opened_postgres_data
   uv_cache:
     driver: local
   nextjs:

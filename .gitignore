@@ -6,6 +6,7 @@ __archive/*
 .quantum-lens
 .mcp.json
 .docs/mcp_json_save/
+.debug-backup/
 
 # Dependencies
 node_modules

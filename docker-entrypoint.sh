@@ -36,6 +36,21 @@ run_migrations() {
     cd /app
 }
 
+# Function to log persisted row counts so data persistence is visible at boot.
+# If these numbers reset to 0 across a restart, the Postgres volume was wiped
+# (e.g. `down -v`) — the data layer itself persists correctly otherwise.
+log_persistence_counts() {
+    echo "Persisted data (post-migration):"
+    PGPASSWORD="$POSTGRES_PASSWORD" psql \
+        -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
+        "SELECT format('  mcp_servers=%s namespaces=%s endpoints=%s users=%s',
+           (SELECT count(*) FROM mcp_servers),
+           (SELECT count(*) FROM namespaces),
+           (SELECT count(*) FROM endpoints),
+           (SELECT count(*) FROM users));" \
+        2>/dev/null || echo "  (persistence count query skipped)"
+}
+
 # Set default values for postgres connection if not provided
 POSTGRES_HOST=${POSTGRES_HOST:-postgres}
 POSTGRES_PORT=${POSTGRES_PORT:-5432}
@@ -46,6 +61,9 @@ wait_for_postgres
 
 # Run migrations
 run_migrations
+
+# Log persisted row counts (visible confirmation the DB volume survived)
+log_persistence_counts
 
 # Start backend in the background
 echo "Starting backend server..."
